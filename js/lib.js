@@ -89,40 +89,28 @@ export function lastPageFromLink(header) {
 }
 
 /**
- * Picks up to `max` page numbers in [1, totalPages], evenly spread, always
- * including the first and the last page.
+ * Builds a cumulative star-count series from the weekly star deltas returned by
+ * GET /repos/{o}/{r}/stargazers/history: `weeks` is [{ week, total, days }, ...]
+ * (possibly spanning several fetched pages, in any order), where `week` is a Unix
+ * timestamp (seconds) and `total` is the number of stars gained that week.
+ * `currentTotal` is the repository's current (live) stargazers_count, used to
+ * anchor the series to now so the line always ends at the real total.
  */
-export function samplePages(totalPages, max) {
-  if (totalPages <= 0 || max <= 0) return [];
-  if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
-  if (max === 1) return [1];
-  const pages = new Set();
-  for (let i = 0; i < max; i++) {
-    pages.add(1 + Math.round((i * (totalPages - 1)) / (max - 1)));
+export function buildStarSeries(weeks, currentTotal, now = Date.now()) {
+  const byWeek = new Map();
+  for (const w of weeks || []) {
+    if (!w || typeof w.week !== 'number') continue;
+    byWeek.set(w.week, (byWeek.get(w.week) || 0) + (w.total || 0));
   }
-  return [...pages].sort((a, b) => a - b);
-}
-
-/**
- * Builds a cumulative star-count series from sampled stargazer pages.
- * `pages` is [{ page, stars: [{ starred_at }] }]; `perPage` is the page size;
- * `total` is the repository's current stargazers_count.
- */
-export function buildStarSeries(pages, perPage, total, now = Date.now()) {
-  const points = [];
-  for (const { page, stars } of [...pages].sort((a, b) => a.page - b.page)) {
-    if (!stars || !stars.length) continue;
-    const offset = (page - 1) * perPage;
-    points.push([Date.parse(stars[0].starred_at), offset + 1]);
-    if (stars.length > 1) {
-      points.push([Date.parse(stars[stars.length - 1].starred_at), offset + stars.length]);
-    }
-  }
-  const series = dedupeSorted(points);
-  if (typeof total === 'number') {
+  let cumulative = 0;
+  const series = [...byWeek.keys()].sort((a, b) => a - b).map((week) => {
+    cumulative += byWeek.get(week);
+    return [week * 1000, cumulative];
+  });
+  if (typeof currentTotal === 'number') {
     const lastValue = series.length ? series[series.length - 1][1] : 0;
     const lastTime = series.length ? series[series.length - 1][0] : -Infinity;
-    if (now > lastTime) series.push([now, Math.max(total, lastValue)]);
+    if (now > lastTime) series.push([now, Math.max(currentTotal, lastValue)]);
   }
   return series;
 }
@@ -219,16 +207,4 @@ export function formatNumber(n) {
 
 function trim(x) {
   return (Math.round(x * 10) / 10).toString();
-}
-
-function dedupeSorted(points) {
-  points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const out = [];
-  for (const p of points) {
-    if (Number.isNaN(p[0])) continue;
-    const prev = out[out.length - 1];
-    if (prev && prev[0] === p[0]) prev[1] = Math.max(prev[1], p[1]);
-    else out.push([...p]);
-  }
-  return out;
 }

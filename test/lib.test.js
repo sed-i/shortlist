@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseRepoInput, parseState, serializeState, rangeStart, lastPageFromLink, samplePages,
+  parseRepoInput, parseState, serializeState, rangeStart, lastPageFromLink,
   buildStarSeries, buildActivitySeries, clipSeries, movingAverage, niceTicks, formatNumber, valueAt,
 } from '../js/lib.js';
 
@@ -52,27 +52,21 @@ test('lastPageFromLink parses GitHub Link headers', () => {
   assert.equal(lastPageFromLink('<https://x/y?page=2>; rel="next"'), null);
 });
 
-test('samplePages spreads evenly and includes first and last page', () => {
-  assert.deepEqual(samplePages(0, 5), []);
-  assert.deepEqual(samplePages(3, 5), [1, 2, 3]);
-  assert.deepEqual(samplePages(400, 5), [1, 101, 201, 300, 400]);
-  assert.deepEqual(samplePages(10, 1), [1]);
-});
-
-test('buildStarSeries builds a cumulative series ending at the current total', () => {
+test('buildStarSeries sums weekly star deltas into a cumulative series ending at the current total', () => {
   const now = Date.parse('2026-01-01T00:00:00Z');
-  const pages = [
-    { page: 3, stars: [{ starred_at: '2025-01-01T00:00:00Z' }, { starred_at: '2025-06-01T00:00:00Z' }] },
-    { page: 1, stars: [{ starred_at: '2024-01-01T00:00:00Z' }, { starred_at: '2024-02-01T00:00:00Z' }] },
+  const w = (n) => n * 604800; // weeks since epoch, seconds
+  const weeks = [
+    { week: w(2900), total: 5, days: [0, 0, 0, 0, 0, 3, 2] },
+    { week: w(2898), total: 10, days: [1, 2, 3, 2, 1, 1, 0] },
+    // Duplicate week (e.g. overlapping pages) should be summed, not double counted.
+    { week: w(2898), total: 1, days: [0, 0, 0, 0, 0, 0, 1] },
   ];
-  assert.deepEqual(buildStarSeries(pages, 100, 250, now), [
-    [Date.parse('2024-01-01T00:00:00Z'), 1],
-    [Date.parse('2024-02-01T00:00:00Z'), 2],
-    [Date.parse('2025-01-01T00:00:00Z'), 201],
-    [Date.parse('2025-06-01T00:00:00Z'), 202],
+  assert.deepEqual(buildStarSeries(weeks, 250, now), [
+    [w(2898) * 1000, 11],
+    [w(2900) * 1000, 16],
     [now, 250],
   ]);
-  assert.deepEqual(buildStarSeries([], 100, 0, now), [[now, 0]]);
+  assert.deepEqual(buildStarSeries([], 0, now), [[now, 0]]);
 });
 
 test('buildActivitySeries sums weekly commits and counts new contributors', () => {

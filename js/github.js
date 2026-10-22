@@ -1,10 +1,10 @@
 // Minimal GitHub REST API client used by the app. Talks only to api.github.com.
-import { lastPageFromLink, samplePages, buildStarSeries, buildActivitySeries } from './lib.js';
+import { lastPageFromLink, buildStarSeries, buildActivitySeries } from './lib.js';
 
 const API = 'https://api.github.com';
-const STAR_PAGE_SIZE = 100;
-// GitHub refuses to paginate the stargazers list past this page.
-const MAX_STAR_PAGE = 400;
+const STAR_HISTORY_PAGE_SIZE = 30;
+// GitHub's documented page cap for this endpoint (100 pages x 30 weeks ≈ 57 years).
+const MAX_STAR_HISTORY_PAGE = 100;
 
 export class GitHubError extends Error {
   constructor(message, status, { rateLimited = false, reset = null } = {}) {
@@ -52,7 +52,19 @@ export class GitHubClient {
         );
       }
       if (res.status === 401) throw new GitHubError('The GitHub token is invalid or expired.', 401);
-      if (res.status === 404) throw new GitHubError('Repository not found (or it is private).', 404);
+      if (res.status === 404) {
+        // The real API always returns rate-limit headers, even on error responses. Their
+        // absence means this response never actually reached api.github.com — it's most likely
+        // a network filter, corporate proxy, VPN, or browser extension blocking the request, not
+        // a missing repository. Reporting the real cause avoids a confusing "not found" for every repo.
+        if (remaining === null) {
+          throw new GitHubError(
+            'Could not reach the GitHub API (api.github.com). A network filter, proxy, VPN or browser extension may be blocking the request.',
+            404,
+          );
+        }
+        throw new GitHubError('Repository not found (or it is private).', 404);
+      }
       throw new GitHubError(`GitHub API error ${res.status}: ${message}`, res.status);
     }
     return { status: res.status, data: res.status === 204 ? null : await res.json(), headers: res.headers };
@@ -62,20 +74,27 @@ export class GitHubClient {
     return this.request(`/repos/${fullName}`).then((r) => r.data);
   }
 
-  /** Cumulative stars over time, built from evenly sampled stargazer pages. */
-  async getStarHistory(fullName, total, maxSamples) {
+  /**
+   * Cumulative stars over time, built from GitHub's weekly star-history endpoint.
+   * (The older "list stargazers" endpoint this used to sample is now restricted
+   * to repo admins/collaborators, see the README's Troubleshooting section.)
+   * `maxPages` bounds how many of the most recent weekly pages (30 weeks each)
+   * are fetched, trading older history for API quota on repos with a long past.
+   */
+  async getStarHistory(fullName, total, maxPages) {
     if (!total) return [];
-    const path = `/repos/${fullName}/stargazers?per_page=${STAR_PAGE_SIZE}`;
-    const accept = 'application/vnd.github.star+json';
-    const first = await this.request(`${path}&page=1`, { accept });
-    const lastPage = Math.min(lastPageFromLink(first.headers.get('link')) || 1, MAX_STAR_PAGE);
-    const pages = [{ page: 1, stars: first.data }];
-    const wanted = samplePages(lastPage, maxSamples).filter((p) => p !== 1);
-    const results = await Promise.all(
-      wanted.map((page) => this.request(`${path}&page=${page}`, { accept }).then((r) => ({ page, stars: r.data }))),
-    );
-    pages.push(...results);
-    return buildStarSeries(pages, STAR_PAGE_SIZE, total);
+    const path = `/repos/${fullName}/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}`;
+    const first = await this.request(`${path}&page=1`);
+    const lastPage = Math.min(lastPageFromLink(first.headers.get('link')) || 1, MAX_STAR_HISTORY_PAGE, maxPages);
+    const weeks = [...(first.data || [])];
+    if (lastPage > 1) {
+      const results = await Promise.all(
+        Array.from({ length: lastPage - 1 }, (_, i) => i + 2)
+          .map((page) => this.request(`${path}&page=${page}`).then((r) => r.data || [])),
+      );
+      for (const pageWeeks of results) weeks.push(...pageWeeks);
+    }
+    return buildStarSeries(weeks, total);
   }
 
   /**
