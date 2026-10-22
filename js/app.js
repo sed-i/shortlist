@@ -1,9 +1,9 @@
 import {
   MAX_REPOS, RANGES, parseRepoInput, parseState, serializeState, rangeStart, clipSeries,
-  movingAverage, formatNumber,
+  movingAverage, formatNumber, buildYearlyStats,
 } from './lib.js';
 import { GitHubClient } from './github.js';
-import { renderChart } from './chart.js';
+import { renderChart, renderScatterChart } from './chart.js';
 import { getToken, setToken, oauthEnabled, startOAuth, completeOAuthIfCallback } from './auth.js';
 
 const COLORS = ['#2f81f7', '#e5534b', '#3fb950'];
@@ -265,7 +265,15 @@ function renderCharts(repos) {
   renderChart($('chart-stars'), mk('stars'), opts);
   renderChart($('chart-contributors'), mk('contributors'), { ...opts, interpolate: false });
   renderChart($('chart-commits'), mk('commits', (p) => (smooth ? movingAverage(p, 4) : p), false), { ...opts, interpolate: false });
-  for (const id of ['legend-stars', 'legend-contributors', 'legend-commits']) renderLegend($(id), repos);
+  const growthSeries = repos.map((r) => ({
+    label: r.entry.data.info.full_name,
+    color: r.color,
+    points: buildYearlyStats(r.entry.data.commits, r.entry.data.contributors)
+      .slice(-5)
+      .map((y) => [y.newContributors, y.commits, y.year]),
+  }));
+  renderScatterChart($('chart-growth'), growthSeries, { xLabel: 'New contributors per year', yLabel: 'Commits per year' });
+  for (const id of ['legend-stars', 'legend-contributors', 'legend-commits', 'legend-growth']) renderLegend($(id), repos);
 
   const pending = repos.filter((r) => !r.entry.data.activityComplete).map((r) => r.entry.data.info.full_name);
   const note = $('stats-pending');

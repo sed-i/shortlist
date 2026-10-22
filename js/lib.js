@@ -143,6 +143,34 @@ export function buildActivitySeries(stats) {
   return { commits, contributors };
 }
 
+/**
+ * Aggregates the weekly `commits`/`contributors` series produced by
+ * `buildActivitySeries` into one entry per calendar year the project has
+ * data for: total commits that year, and the number of *new* contributors
+ * (not cumulative) who joined that year. Entries are sorted by year ascending.
+ */
+export function buildYearlyStats(commits, contributors) {
+  const commitsByYear = new Map();
+  for (const [t, c] of commits || []) {
+    const year = new Date(t).getUTCFullYear();
+    commitsByYear.set(year, (commitsByYear.get(year) || 0) + c);
+  }
+  const cumulativeByYear = new Map();
+  for (const [t, v] of contributors || []) {
+    // Points are chronological, so the last value seen for a year is the
+    // cumulative contributor count as of the end of that year.
+    cumulativeByYear.set(new Date(t).getUTCFullYear(), v);
+  }
+  const years = [...new Set([...commitsByYear.keys(), ...cumulativeByYear.keys()])].sort((a, b) => a - b);
+  let prevCumulative = 0;
+  return years.map((year) => {
+    const cumulative = cumulativeByYear.has(year) ? cumulativeByYear.get(year) : prevCumulative;
+    const newContributors = cumulative - prevCumulative;
+    prevCumulative = cumulative;
+    return { year, commits: commitsByYear.get(year) || 0, newContributors };
+  });
+}
+
 /** Trailing moving average over `window` points. */
 export function movingAverage(points, window) {
   if (window <= 1) return points;

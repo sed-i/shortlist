@@ -131,3 +131,71 @@ export function renderChart(container, series, { xMin, xMax, interpolate = true 
 
   container.append(svg, tooltip);
 }
+
+const SM = { top: 16, right: 24, bottom: 42, left: 56 };
+
+/**
+ * XY scatter/line plot: one point per calendar year, points connected by a
+ * line in year order, with a year label next to each point.
+ * series: [{ label, color, points: [[x, y, year], ...] }] (points sorted by year)
+ * options: { xLabel, yLabel }
+ */
+export function renderScatterChart(container, series, { xLabel = '', yLabel = '' } = {}) {
+  container.replaceChildren();
+  const all = series.flatMap((s) => s.points);
+  if (!all.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = 'No data for this period.';
+    container.appendChild(p);
+    return;
+  }
+  const xMaxRaw = Math.max(1, ...all.map((p) => p[0]));
+  const yMaxRaw = Math.max(1, ...all.map((p) => p[1]));
+  const xTicks = niceTicks(0, xMaxRaw, 5);
+  const yTicks = niceTicks(0, yMaxRaw, 5);
+  const x1 = Math.max(xMaxRaw, xTicks[xTicks.length - 1]);
+  const y1 = Math.max(yMaxRaw, yTicks[yTicks.length - 1]);
+
+  const sx = (v) => SM.left + (v / Math.max(1, x1)) * (W - SM.left - SM.right);
+  const sy = (v) => H - SM.bottom - (v / Math.max(1, y1)) * (H - SM.top - SM.bottom);
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img' });
+
+  const grid = el('g', { class: 'grid' }, svg);
+  for (const v of yTicks) {
+    el('line', { x1: SM.left, x2: W - SM.right, y1: sy(v), y2: sy(v) }, grid);
+    el('text', { x: SM.left - 6, y: sy(v) + 4, 'text-anchor': 'end' }, grid).textContent = formatNumber(v);
+  }
+  for (const v of xTicks) {
+    el('line', { x1: sx(v), x2: sx(v), y1: SM.top, y2: H - SM.bottom, class: 'v' }, grid);
+    el('text', { x: sx(v), y: H - SM.bottom + 18, 'text-anchor': 'middle' }, grid).textContent = formatNumber(v);
+  }
+  if (xLabel) {
+    el('text', {
+      x: SM.left + (W - SM.left - SM.right) / 2, y: H - 4, 'text-anchor': 'middle', class: 'axis-label',
+    }, svg).textContent = xLabel;
+  }
+  if (yLabel) {
+    const cy = SM.top + (H - SM.top - SM.bottom) / 2;
+    el('text', {
+      x: 12, y: cy, 'text-anchor': 'middle', class: 'axis-label', transform: `rotate(-90 12 ${cy})`,
+    }, svg).textContent = yLabel;
+  }
+
+  for (const s of series) {
+    if (!s.points.length) continue;
+    if (s.points.length > 1) {
+      const d = s.points.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join('');
+      el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
+    }
+    for (const [x, y, year] of s.points) {
+      el('circle', { cx: sx(x).toFixed(1), cy: sy(y).toFixed(1), r: 3.5, fill: s.color }, svg);
+      el('text', {
+        x: sx(x) + 6, y: sy(y) - 6, 'text-anchor': 'start', class: 'point-label',
+      }, svg).textContent = year;
+    }
+  }
+
+  container.append(svg);
+}

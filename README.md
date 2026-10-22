@@ -6,6 +6,7 @@ decide which one to install. For each project it charts how these evolved over t
 - **Stars** (cumulative)
 - **Contributors** (cumulative)
 - **Weekly commits** (optionally smoothed with a 4-week average)
+- **Yearly growth**: new contributors vs. total commits for each of the last 5 calendar years
 
 plus a summary table (latest release, last push, license, open issues, archived, …).
 
