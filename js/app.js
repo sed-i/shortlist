@@ -209,7 +209,7 @@ function renderSummary(repos) {
     ['Description', (d) => d.info.description || '–'],
     ['Stars', (d) => formatNumber(d.info.stargazers_count)],
     ['Contributors', (d) => (d.contributorCount == null ? 'n/a (too many to list)' : formatNumber(d.contributorCount))],
-    ['Commits (last 12 weeks)', (d) => formatNumber(d.commits.slice(-12).reduce((s, [, c]) => s + c, 0))],
+    ['Commits (last 12 weeks)', (d) => formatNumber(d.commits.all.slice(-12).reduce((s, [, c]) => s + c, 0))],
     ['Forks', (d) => formatNumber(d.info.forks_count)],
     ['Open issues + PRs', (d) => formatNumber(d.info.open_issues_count)],
     ['Latest release', (d) => (d.release ? link(d.release.html_url, `${d.release.tag_name} (${fmtDate(d.release.published_at)})`) : '–')],
@@ -238,7 +238,7 @@ function renderSummary(repos) {
   }
 }
 
-function renderLegend(container, repos) {
+function renderLegend(container, repos, { showLineStyle = false } = {}) {
   container.replaceChildren();
   for (const r of repos) {
     const span = document.createElement('span');
@@ -248,6 +248,17 @@ function renderLegend(container, repos) {
     span.append(sw, r.entry.data.info.full_name);
     container.appendChild(span);
   }
+  if (showLineStyle) {
+    const all = document.createElement('span');
+    const allLine = document.createElement('span');
+    allLine.className = 'swatch-line dashed';
+    all.append(allLine, 'All');
+    const nonBot = document.createElement('span');
+    const nonBotLine = document.createElement('span');
+    nonBotLine.className = 'swatch-line';
+    nonBot.append(nonBotLine, 'Non-bot');
+    container.append(all, nonBot);
+  }
 }
 
 function renderCharts(repos) {
@@ -256,24 +267,47 @@ function renderCharts(repos) {
   const now = Date.now();
   const start = rangeStart(state.range, now);
   const smooth = $('smooth').checked;
-  const mk = (key, transform = (p) => p, interpolateClip = true) => repos.map((r) => ({
-    label: r.entry.data.info.full_name,
-    color: r.color,
-    points: clipSeries(transform(r.entry.data[key]), start, interpolateClip),
-  }));
   const opts = { xMin: start ?? undefined, xMax: now };
-  renderChart($('chart-stars'), mk('stars'), opts);
-  renderChart($('chart-contributors'), mk('contributors'), { ...opts, interpolate: false });
-  renderChart($('chart-commits'), mk('commits', (p) => (smooth ? movingAverage(p, 4) : p), false), { ...opts, interpolate: false });
-  const growthSeries = repos.map((r) => ({
+
+  const starsSeries = repos.map((r) => ({
     label: r.entry.data.info.full_name,
     color: r.color,
-    points: buildYearlyStats(r.entry.data.commits, r.entry.data.contributors)
+    points: clipSeries(r.entry.data.stars, start, true),
+  }));
+  renderChart($('chart-stars'), starsSeries, opts);
+
+  // Commits/contributors are split into "all" (dashed) and "non-bot" (solid) series,
+  // plotted together on the same chart so bot activity (CI bots, dependency bots, …)
+  // can be told apart from human activity.
+  const variantLabel = (name, variant) => `${name} (${variant === 'all' ? 'all' : 'non-bot'})`;
+  const mkVariants = (key, transform = (p) => p, interpolateClip = true) => repos.flatMap((r) => ['all', 'nonBot'].map((variant) => ({
+    label: variantLabel(r.entry.data.info.full_name, variant),
+    color: r.color,
+    dashed: variant === 'all',
+    points: clipSeries(transform(r.entry.data[key][variant]), start, interpolateClip),
+  })));
+
+  renderChart($('chart-contributors'), mkVariants('contributors'), { ...opts, interpolate: false });
+  renderChart(
+    $('chart-commits'),
+    mkVariants('commits', (p) => (smooth ? movingAverage(p, 4) : p), false),
+    { ...opts, interpolate: false },
+  );
+
+  const growthSeries = repos.flatMap((r) => ['all', 'nonBot'].map((variant) => ({
+    label: variantLabel(r.entry.data.info.full_name, variant),
+    color: r.color,
+    dashed: variant === 'all',
+    points: buildYearlyStats(r.entry.data.commits[variant], r.entry.data.contributors[variant])
       .slice(-5)
       .map((y) => [y.newContributors, y.commits, y.year]),
-  }));
+  })));
   renderScatterChart($('chart-growth'), growthSeries, { xLabel: 'New contributors per year', yLabel: 'Commits per year' });
-  for (const id of ['legend-stars', 'legend-contributors', 'legend-commits', 'legend-growth']) renderLegend($(id), repos);
+
+  renderLegend($('legend-stars'), repos);
+  renderLegend($('legend-contributors'), repos, { showLineStyle: true });
+  renderLegend($('legend-commits'), repos, { showLineStyle: true });
+  renderLegend($('legend-growth'), repos, { showLineStyle: true });
 
   const pending = repos.filter((r) => !r.entry.data.activityComplete).map((r) => r.entry.data.info.full_name);
   const note = $('stats-pending');

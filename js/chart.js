@@ -67,7 +67,9 @@ export function renderChart(container, series, { xMin, xMax, interpolate = true 
   for (const s of series) {
     if (!s.points.length) continue;
     const d = s.points.map(([t, v], i) => `${i ? 'L' : 'M'}${sx(t).toFixed(1)},${sy(v).toFixed(1)}`).join('');
-    el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
+    const attrs = { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' };
+    if (s.dashed) attrs['stroke-dasharray'] = '7 5';
+    el('path', attrs, svg);
   }
 
   const cursor = el('line', { y1: M.top, y2: H - M.bottom, class: 'cursor', visibility: 'hidden' }, svg);
@@ -187,10 +189,15 @@ export function renderScatterChart(container, series, { xLabel = '', yLabel = ''
     if (!s.points.length) continue;
     if (s.points.length > 1) {
       const d = s.points.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join('');
-      el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
+      const attrs = { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' };
+      if (s.dashed) attrs['stroke-dasharray'] = '7 5';
+      el('path', attrs, svg);
     }
     for (const [x, y, year] of s.points) {
-      el('circle', { cx: sx(x).toFixed(1), cy: sy(y).toFixed(1), r: 3.5, fill: s.color }, svg);
+      const circleAttrs = { cx: sx(x).toFixed(1), cy: sy(y).toFixed(1), r: 3.5 };
+      if (s.dashed) Object.assign(circleAttrs, { fill: 'none', stroke: s.color, 'stroke-width': 2 });
+      else circleAttrs.fill = s.color;
+      el('circle', circleAttrs, svg);
       el('text', {
         x: sx(x) + 6, y: sy(y) - 6, 'text-anchor': 'start', class: 'point-label',
       }, svg).textContent = year;

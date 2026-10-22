@@ -69,17 +69,22 @@ test('buildStarSeries sums weekly star deltas into a cumulative series ending at
   assert.deepEqual(buildStarSeries([], 0, now), [[now, 0]]);
 });
 
-test('buildActivitySeries sums weekly commits and counts new contributors', () => {
+test('buildActivitySeries sums weekly commits and counts new contributors, splitting out bot authors', () => {
   const w = (n) => n * 604800;
   const stats = [
-    { weeks: [{ w: w(1), c: 2 }, { w: w(2), c: 0 }, { w: w(3), c: 1 }] },
-    { weeks: [{ w: w(1), c: 0 }, { w: w(2), c: 5 }, { w: w(3), c: 0 }] },
-    { weeks: [{ w: w(1), c: 0 }, { w: w(2), c: 0 }, { w: w(3), c: 0 }] },
+    { author: { login: 'alice', type: 'User' }, weeks: [{ w: w(1), c: 2 }, { w: w(2), c: 0 }, { w: w(3), c: 1 }] },
+    { author: { login: 'bob', type: 'User' }, weeks: [{ w: w(1), c: 0 }, { w: w(2), c: 5 }, { w: w(3), c: 0 }] },
+    { author: { login: 'dependabot[bot]', type: 'Bot' }, weeks: [{ w: w(1), c: 0 }, { w: w(2), c: 0 }, { w: w(3), c: 3 }] },
   ];
   const { commits, contributors } = buildActivitySeries(stats);
-  assert.deepEqual(commits, [[w(1) * 1000, 2], [w(2) * 1000, 5], [w(3) * 1000, 1]]);
-  assert.deepEqual(contributors, [[w(1) * 1000, 1], [w(2) * 1000, 2], [w(3) * 1000, 2]]);
-  assert.deepEqual(buildActivitySeries({}), { commits: [], contributors: [] });
+  assert.deepEqual(commits.all, [[w(1) * 1000, 2], [w(2) * 1000, 5], [w(3) * 1000, 4]]);
+  assert.deepEqual(commits.nonBot, [[w(1) * 1000, 2], [w(2) * 1000, 5], [w(3) * 1000, 1]]);
+  assert.deepEqual(contributors.all, [[w(1) * 1000, 1], [w(2) * 1000, 2], [w(3) * 1000, 3]]);
+  assert.deepEqual(contributors.nonBot, [[w(1) * 1000, 1], [w(2) * 1000, 2], [w(3) * 1000, 2]]);
+  assert.deepEqual(buildActivitySeries({}), {
+    commits: { all: [], nonBot: [] },
+    contributors: { all: [], nonBot: [] },
+  });
 });
 
 test('buildYearlyStats aggregates weekly series into per-year commits and new contributors', () => {
