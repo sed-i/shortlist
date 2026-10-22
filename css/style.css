@@ -47,6 +47,8 @@ header { border-bottom: 1px solid var(--border); padding-bottom: .75rem; }
 .chip .status.error { color: var(--error); cursor: help; }
 .chip .remove { border: none; background: none; font-size: 1.1rem; line-height: 1; padding: 0 .4rem; }
 .swatch { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: baseline; }
+.swatch-line { display: inline-block; width: 1.1rem; border-top: 2px solid var(--fg); margin-right: .35rem; vertical-align: middle; }
+.swatch-line.dashed { border-top-style: dashed; }
 .message { padding: .5rem .75rem; border-radius: 6px; border: 1px solid var(--error); color: var(--error); }
 .summary { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .95em; }
 .summary th, .summary td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }

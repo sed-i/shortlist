@@ -115,32 +115,60 @@ export function buildStarSeries(weeks, currentTotal, now = Date.now()) {
   return series;
 }
 
+/** A GitHub contributor-stats entry is a bot when its author account type is "Bot". */
+function isBotContributor(contributor) {
+  return Boolean(contributor.author && contributor.author.type === 'Bot');
+}
+
 /**
  * Converts the response of GET /repos/{o}/{r}/stats/contributors into
  * - commits: weekly commit totals [[weekStartMs, commits]]
  * - contributors: cumulative distinct contributors [[weekStartMs, count]]
+ * Each is returned as `{ all, nonBot }`, the latter excluding contributors whose
+ * GitHub account type is "Bot" (e.g. dependabot[bot], renovate[bot]), so charts can
+ * show both the full activity and the human-only activity on the same timeline.
  */
 export function buildActivitySeries(stats) {
   const weekly = new Map();
+  const weeklyNonBot = new Map();
   const firstWeeks = [];
+  const firstWeeksNonBot = [];
   for (const contributor of Array.isArray(stats) ? stats : []) {
+    const bot = isBotContributor(contributor);
     let first = null;
     for (const week of contributor.weeks || []) {
       const t = week.w * 1000;
-      weekly.set(t, (weekly.get(t) || 0) + (week.c || 0));
-      if (week.c > 0 && (first === null || t < first)) first = t;
+      const c = week.c || 0;
+      weekly.set(t, (weekly.get(t) || 0) + c);
+      if (!bot) weeklyNonBot.set(t, (weeklyNonBot.get(t) || 0) + c);
+      if (c > 0 && (first === null || t < first)) first = t;
     }
-    if (first !== null) firstWeeks.push(first);
+    if (first !== null) {
+      firstWeeks.push(first);
+      if (!bot) firstWeeksNonBot.push(first);
+    }
   }
+  // Use the full set of weeks for both variants so "all" and "non-bot" line up on
+  // the same x-axis, with zero commits on weeks that only had bot activity.
   const weeks = [...weekly.keys()].sort((a, b) => a - b);
-  const commits = weeks.map((t) => [t, weekly.get(t)]);
-  firstWeeks.sort((a, b) => a - b);
-  let i = 0;
-  const contributors = weeks.map((t) => {
-    while (i < firstWeeks.length && firstWeeks[i] <= t) i++;
-    return [t, i];
-  });
-  return { commits, contributors };
+  const cumulativeContributors = (firsts) => {
+    const sorted = [...firsts].sort((a, b) => a - b);
+    let i = 0;
+    return weeks.map((t) => {
+      while (i < sorted.length && sorted[i] <= t) i++;
+      return [t, i];
+    });
+  };
+  return {
+    commits: {
+      all: weeks.map((t) => [t, weekly.get(t)]),
+      nonBot: weeks.map((t) => [t, weeklyNonBot.get(t) || 0]),
+    },
+    contributors: {
+      all: cumulativeContributors(firstWeeks),
+      nonBot: cumulativeContributors(firstWeeksNonBot),
+    },
+  };
 }
 
 /**

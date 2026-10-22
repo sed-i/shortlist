@@ -8,6 +8,10 @@ decide which one to install. For each project it charts how these evolved over t
 - **Weekly commits** (optionally smoothed with a 4-week average)
 - **Yearly growth**: new contributors vs. total commits for each of the last 5 calendar years
 
+Contributors, commits and yearly growth charts plot both "all" (dashed) and
+"non-bot" (solid) activity on the same chart, so bot accounts (e.g.
+`dependabot[bot]`, `renovate[bot]`) can be told apart from human activity.
+
 plus a summary table (latest release, last push, license, open issues, archived, …).
 
 ## Usage
@@ -74,7 +78,8 @@ The token is stored **unencrypted** in your browser's `localStorage`, is sent **
 - Contributors and weekly commits come from GitHub's
   [contributor statistics](https://docs.github.com/en/rest/metrics/statistics#get-all-contributor-commit-activity),
   which cover the top 100 contributors on the default branch. GitHub computes these lazily; if
-  they're not ready yet, reload after a minute.
+  they're not ready yet, reload after a minute. A contributor is treated as a bot when GitHub
+  reports their account `type` as `"Bot"`.
 - Responses are cached for an hour in `sessionStorage` to save API quota.
 
 
