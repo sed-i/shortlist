@@ -30,6 +30,16 @@ Everything works without logging in, but anonymous GitHub API use is limited to 
 The token is stored **unencrypted** in your browser's `localStorage`, is sent **only to GitHub**
 (`api.github.com`), and "Forget token / sign out" deletes it. The app shows this note next to the token field.
 
+### Troubleshooting
+
+- **"Repository not found (or it is private)"** for a project you know is public and exists usually
+  means the repo name couldn't be parsed correctly, or GitHub genuinely rejected the request (e.g.
+  it was renamed/deleted, or you pasted a token without "public repositories" access).
+- **"Could not reach the GitHub API"** means a request never actually got a response from
+  `api.github.com` (so it fails for every project, not just one). This points to something between
+  your browser and GitHub, such as a corporate proxy, VPN, DNS filter or ad-blocking browser
+  extension blocking that domain — try disabling it or switching networks.
+
 ## Data notes
 
 - Star history is estimated from evenly sampled pages of the stargazer list (GitHub only exposes

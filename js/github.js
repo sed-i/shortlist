@@ -52,7 +52,19 @@ export class GitHubClient {
         );
       }
       if (res.status === 401) throw new GitHubError('The GitHub token is invalid or expired.', 401);
-      if (res.status === 404) throw new GitHubError('Repository not found (or it is private).', 404);
+      if (res.status === 404) {
+        // The real API always returns rate-limit headers, even on error responses. Their
+        // absence means this response never actually reached api.github.com — it's most likely
+        // a network filter, corporate proxy, VPN, or browser extension blocking the request, not
+        // a missing repository. Reporting the real cause avoids a confusing "not found" for every repo.
+        if (remaining === null) {
+          throw new GitHubError(
+            'Could not reach the GitHub API (api.github.com). A network filter, proxy, VPN or browser extension may be blocking the request.',
+            404,
+          );
+        }
+        throw new GitHubError('Repository not found (or it is private).', 404);
+      }
       throw new GitHubError(`GitHub API error ${res.status}: ${message}`, res.status);
     }
     return { status: res.status, data: res.status === 204 ? null : await res.json(), headers: res.headers };
