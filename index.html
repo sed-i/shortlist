@@ -27,7 +27,10 @@
         </form>
         <p class="muted">Raises the API limit from 60 to 5,000 requests/hour. A
           <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained token</a>
-          with no extra permissions (public repositories only) is enough. It is stored only in this browser and sent only to api.github.com.</p>
+          with no extra permissions (public repositories only) is enough.</p>
+        <p class="token-note" role="note"><strong>Note:</strong> the token is stored <strong>unencrypted</strong> in this
+          browser (localStorage), is sent <strong>only to GitHub</strong> (api.github.com), and
+          <strong>“Forget token / sign out”</strong> deletes it.</p>
       </details>
     </div>
   </header>

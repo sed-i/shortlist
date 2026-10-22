@@ -27,8 +27,8 @@ Everything works without logging in, but anonymous GitHub API use is limited to 
   with no extra permissions is enough, or
 - **Sign in with GitHub** (only shown if the site owner configured it, see below).
 
-The token is kept in your browser's `localStorage` and is only ever sent to `api.github.com`.
-"Forget token / sign out" removes it.
+The token is stored **unencrypted** in your browser's `localStorage`, is sent **only to GitHub**
+(`api.github.com`), and "Forget token / sign out" deletes it. The app shows this note next to the token field.
 
 ## Data notes
 
