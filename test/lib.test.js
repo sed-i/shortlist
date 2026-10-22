@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseRepoInput, parseState, serializeState, rangeStart, lastPageFromLink,
-  buildStarSeries, buildActivitySeries, clipSeries, movingAverage, niceTicks, formatNumber, valueAt,
+  WEEK, parseRepoInput, parseState, serializeState, rangeStart, lastPageFromLink,
+  buildStarSeries, buildActivitySeries, buildYearlyStats, clipSeries, movingAverage, niceTicks, formatNumber, valueAt,
 } from '../js/lib.js';
 
 test('parseRepoInput accepts common formats', () => {
@@ -80,6 +80,20 @@ test('buildActivitySeries sums weekly commits and counts new contributors', () =
   assert.deepEqual(commits, [[w(1) * 1000, 2], [w(2) * 1000, 5], [w(3) * 1000, 1]]);
   assert.deepEqual(contributors, [[w(1) * 1000, 1], [w(2) * 1000, 2], [w(3) * 1000, 2]]);
   assert.deepEqual(buildActivitySeries({}), { commits: [], contributors: [] });
+});
+
+test('buildYearlyStats aggregates weekly series into per-year commits and new contributors', () => {
+  const y = (year, week = 0) => Date.UTC(year, 0, 1) + week * WEEK;
+  const commits = [[y(2023), 5], [y(2023, 10), 3], [y(2024), 2], [y(2025), 1]];
+  const contributors = [[y(2023), 1], [y(2023, 10), 2], [y(2024), 2], [y(2025), 4]];
+  assert.deepEqual(buildYearlyStats(commits, contributors), [
+    { year: 2023, commits: 8, newContributors: 2 },
+    { year: 2024, commits: 2, newContributors: 0 },
+    { year: 2025, commits: 1, newContributors: 2 },
+  ]);
+  assert.deepEqual(buildYearlyStats([], []), []);
+  // A year with contributor data but no commits that year still shows up, with 0 commits.
+  assert.deepEqual(buildYearlyStats([], [[y(2020), 3]]), [{ year: 2020, commits: 0, newContributors: 3 }]);
 });
 
 test('clipSeries trims to the range and optionally interpolates the start', () => {

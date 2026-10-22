@@ -61,6 +61,8 @@ figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1
 .chart { display: block; width: 100%; height: auto; }
 .chart .grid line { stroke: var(--border); stroke-width: 1; }
 .chart .grid text { fill: var(--muted); font-size: 12px; }
+.chart .axis-label { fill: var(--muted); font-size: 12px; }
+.chart .point-label { fill: var(--fg); font-size: 11px; }
 .chart .cursor { stroke: var(--muted); stroke-dasharray: 3 3; }
 .tooltip {
   position: absolute; top: .5rem; pointer-events: none; background: var(--bg); border: 1px solid var(--border);
