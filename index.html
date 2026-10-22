@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Shortlist – compare GitHub projects</title>
+  <meta name="description" content="Compare up to 3 GitHub projects: stars, contributors and weekly commits over time.">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Shortlist</h1>
+    <p class="tagline">Compare up to 3 GitHub projects to decide which one to install.</p>
+    <div class="auth">
+      <span id="auth-status"></span>
+      <span id="rate-limit" class="muted"></span>
+      <button id="signin-btn" type="button" hidden>Sign in with GitHub</button>
+      <button id="signout-btn" type="button" hidden>Forget token / sign out</button>
+      <details id="token-details">
+        <summary>Use a GitHub token</summary>
+        <form id="token-form">
+          <input id="token-input" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="ghp_… or github_pat_…" aria-label="GitHub token">
+          <button type="submit">Save</button>
+        </form>
+        <p class="muted">Raises the API limit from 60 to 5,000 requests/hour. A
+          <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained token</a>
+          with no extra permissions (public repositories only) is enough.</p>
+        <p class="token-note" role="note"><strong>Note:</strong> the token is stored <strong>unencrypted</strong> in this
+          browser (localStorage), is sent <strong>only to GitHub</strong> (api.github.com), and
+          <strong>“Forget token / sign out”</strong> deletes it.</p>
+      </details>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls">
+      <form id="add-form">
+        <input id="repo-input" type="text" autocomplete="off" spellcheck="false" aria-label="Repository to add">
+        <button id="add-btn" type="submit">Add</button>
+      </form>
+      <label>Chart range
+        <select id="range"></select>
+      </label>
+      <button id="share-btn" type="button">Copy share link</button>
+    </section>
+
+    <ul id="repo-list" class="chips"></ul>
+    <p id="message" class="message" role="alert" hidden></p>
+    <p id="empty" class="muted">Add a project above (e.g. <code>facebook/react</code>). The page URL updates as you go, so you can share it.</p>
+
+    <table id="summary" class="summary"></table>
+
+    <section id="charts" hidden>
+      <p id="stats-pending" class="message" hidden></p>
+      <figure>
+        <figcaption><h2>Stars</h2><div id="legend-stars" class="legend"></div></figcaption>
+        <div id="chart-stars" class="chart-box"></div>
+      </figure>
+      <figure>
+        <figcaption><h2>Contributors (cumulative)</h2><div id="legend-contributors" class="legend"></div></figcaption>
+        <div id="chart-contributors" class="chart-box"></div>
+        <p class="muted note">Counts the top 100 contributors by commits (GitHub API limit), by the week of their first commit on the default branch.</p>
+      </figure>
+      <figure>
+        <figcaption>
+          <h2>Weekly commits</h2><div id="legend-commits" class="legend"></div>
+          <label class="smooth"><input id="smooth" type="checkbox" checked> 4-week average</label>
+        </figcaption>
+        <div id="chart-commits" class="chart-box"></div>
+        <p class="muted note">Commits to the default branch by the top 100 contributors.</p>
+      </figure>
+      <p class="muted note">Star history is estimated from evenly sampled pages of the stargazer list; GitHub only lists the first 40,000 stargazers.</p>
+    </section>
+  </main>
+
+  <footer class="muted">
+    All data comes straight from the GitHub API in your browser — there is no server.
+    <a href="https://github.com/sed-i/shortlist" target="_blank" rel="noopener noreferrer">Source</a>
+  </footer>
+</body>
+</html>
