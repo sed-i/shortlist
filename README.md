@@ -22,10 +22,22 @@ plus a summary table (latest release, last push, license, open issues, archived,
 Everything works without logging in, but anonymous GitHub API use is limited to 60 requests/hour
 (roughly one comparison of 3 projects). To get 5,000 requests/hour, either:
 
-- **Paste a token** under "Use a GitHub token" — a
-  [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
-  with no extra permissions is enough, or
+- **Paste a token** under "Use a GitHub token", or
 - **Sign in with GitHub** (only shown if the site owner configured it, see below).
+
+Shortlist only ever reads public data, so the token needs no write access. The required
+permissions depend on the kind of token:
+
+- **Fine-grained personal access token**
+  ([create one](https://github.com/settings/personal-access-tokens/new)): no extra permissions
+  are needed — the default "Public Repositories (read-only)" access is enough. Do **not** grant
+  access to any private repositories.
+- **Classic personal access token**
+  ([create one](https://github.com/settings/tokens/new)): the **`public_repo`** scope is enough
+  (and already more than Shortlist needs, since it only reads data, never writes). No other
+  scopes are required.
+- **Sign in with GitHub** requests no scopes at all — just read-only access to public data at
+  the authenticated rate limit.
 
 The token is stored **unencrypted** in your browser's `localStorage`, is sent **only to GitHub**
 (`api.github.com`), and "Forget token / sign out" deletes it. The app shows this note next to the token field.
@@ -33,22 +45,37 @@ The token is stored **unencrypted** in your browser's `localStorage`, is sent **
 ### Troubleshooting
 
 - **"Repository not found (or it is private)"** for a project you know is public and exists usually
-  means the repo name couldn't be parsed correctly, or GitHub genuinely rejected the request (e.g.
-  it was renamed/deleted, or you pasted a token without "public repositories" access).
+  means the repo name couldn't be parsed correctly, or the repo was renamed/deleted. This is
+  **not** a token permission problem — no scope or fine-grained permission changes what a token
+  can see on a public repo, since Shortlist only requests public data.
 - **"Could not reach the GitHub API"** means a request never actually got a response from
   `api.github.com` (so it fails for every project, not just one). This points to something between
   your browser and GitHub, such as a corporate proxy, VPN, DNS filter or ad-blocking browser
   extension blocking that domain — try disabling it or switching networks.
+- **"GitHub API rate limit exceeded"** means you've hit the 60 requests/hour anonymous cap (or,
+  more rarely, the 5,000/hour authenticated cap). Paste a token or sign in to raise the limit.
+  Note that opening an `api.github.com` URL directly in your browser's address bar is always an
+  **anonymous** request (the page can't attach Shortlist's saved token to it), so it will hit the
+  60/hour cap much faster than the app itself — this doesn't mean the app isn't using your token.
+- Each project chip shows a short **⚠ error** label when it fails to load; hover over (or focus)
+  it to see the full error message in a tooltip.
 
 ## Data notes
 
-- Star history is estimated from evenly sampled pages of the stargazer list (GitHub only exposes
-  the first 40,000 stargazers; the line then goes straight to today's total).
+- Star history comes from GitHub's
+  [weekly star-history endpoint](https://docs.github.com/en/rest/activity/starring), which
+  returns new stars per week going back to the repo's creation. To limit API usage, only the most
+  recent pages are fetched (30 weeks/page): up to 900 weeks (~17 years) with a token, or 240 weeks
+  (~4.6 years) anonymously — older history is omitted from "all time" views on very old repos.
+  The classic "list stargazers" endpoint this previously sampled is no longer used: GitHub
+  restricts it to repo admins/collaborators, so it 404s for everyone else regardless of token
+  permissions.
 - Contributors and weekly commits come from GitHub's
   [contributor statistics](https://docs.github.com/en/rest/metrics/statistics#get-all-contributor-commit-activity),
   which cover the top 100 contributors on the default branch. GitHub computes these lazily; if
   they're not ready yet, reload after a minute.
 - Responses are cached for an hour in `sessionStorage` to save API quota.
+
 
 ## Running locally
 

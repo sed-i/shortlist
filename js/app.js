@@ -165,7 +165,9 @@ function renderChips() {
     status.className = 'status';
     if (entry && entry.status === 'loading') status.textContent = 'loading…';
     if (entry && entry.status === 'error') {
-      status.textContent = entry.error.message;
+      status.textContent = '⚠ error';
+      status.title = entry.error.message;
+      status.setAttribute('aria-label', entry.error.message);
       status.classList.add('error');
     }
     const btn = document.createElement('button');

@@ -44,7 +44,7 @@ header { border-bottom: 1px solid var(--border); padding-bottom: .75rem; }
   border: 1px solid var(--border); border-left-width: 4px; border-radius: 6px; background: var(--panel);
 }
 .chip .status { color: var(--muted); font-size: .85em; }
-.chip .status.error { color: var(--error); }
+.chip .status.error { color: var(--error); cursor: help; }
 .chip .remove { border: none; background: none; font-size: 1.1rem; line-height: 1; padding: 0 .4rem; }
 .swatch { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: baseline; }
 .message { padding: .5rem .75rem; border-radius: 6px; border: 1px solid var(--error); color: var(--error); }
